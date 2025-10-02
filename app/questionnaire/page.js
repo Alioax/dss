@@ -1,7 +1,7 @@
 // app/questionnaire/page.js
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react"; // ⬅️ added useRef
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import QUESTIONS from "../data/questions";
@@ -9,6 +9,8 @@ import QUESTIONS from "../data/questions";
 export default function QuestionnairePage() {
   const router = useRouter();
   const [answers, setAnswers] = useState(Array(QUESTIONS.length).fill(null));
+  const qRefs = useRef([]); // ⬅️ refs for question containers
+
   const completed = useMemo(
     () => answers.filter((a) => a !== null).length,
     [answers]
@@ -125,7 +127,7 @@ export default function QuestionnairePage() {
               onClick={handleReset}
               className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
             >
-                پاک کردن همه
+              پاک کردن همه
             </button>
           </div>
         </div>
@@ -134,33 +136,39 @@ export default function QuestionnairePage() {
           {QUESTIONS.map((q, idx) => {
             const titleId = `q${q.id}-title`;
             const hasSelection = answers[idx] !== null;
+            const qNumber = idx + 1;
 
             return (
               <div
                 key={q.id}
+                ref={(el) => (qRefs.current[idx] = el)} // ⬅️ store ref
                 role="group"
                 aria-labelledby={titleId}
-                className="rounded-2xl border border-slate-200 bg-white"
+                className="rounded-2xl border border-slate-200 bg-white scroll-mt-24" // ⬅️ offset for sticky header
               >
-                <p id={titleId} className="px-4 pt-4 text-base font-medium text-slate-900">
-                  {q.text}
+                {/* Question number + text */}
+                <p
+                  id={titleId}
+                  className="px-4 pt-4 text-base font-medium text-slate-900"
+                >
+                  {qNumber}. {q.text}
                 </p>
 
                 <div className="p-4 sm:p-5 pt-3">
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                    {q.options.map((opt) => {
+                  {/* Full-width options (one per row) */}
+                  <div className="flex flex-col gap-3">
+                    {q.options.map((opt, optIdx) => {
                       const id = `q${q.id}-v${opt.value}`;
                       const checked = answers[idx] === opt.value;
-
-                      // Muted look for non-selected options in a question that has a selection
                       const muted = hasSelection && !checked;
+                      const optNumber = optIdx + 1;
 
                       return (
                         <label
                           key={id}
                           htmlFor={id}
                           className={[
-                            "block cursor-pointer rounded-xl border p-3 text-sm whitespace-normal break-words transition",
+                            "block w-full cursor-pointer rounded-xl border p-3 text-sm whitespace-normal break-words transition",
                             checked
                               ? "border-slate-900 bg-slate-900 text-white"
                               : "border-slate-300 bg-white hover:border-slate-400",
@@ -174,8 +182,21 @@ export default function QuestionnairePage() {
                             className="sr-only"
                             value={opt.value}
                             checked={checked}
-                            onChange={() => setAnswer(idx, opt.value)}
+                            onChange={() => {
+                              const prev = answers[idx];
+                              setAnswer(idx, opt.value);
+                              // Scroll only on selection (not deselection) and not on last question
+                              if (prev !== opt.value && idx < QUESTIONS.length - 1) {
+                                setTimeout(() => {
+                                  qRefs.current[idx + 1]?.scrollIntoView({
+                                    behavior: "smooth",
+                                    block: "start",
+                                  });
+                                }, 300); // ⬅️ 300ms delay
+                              }
+                            }}
                             onClick={(e) => {
+                              // Allow deselection of the same option without scrolling
                               if (answers[idx] === opt.value) {
                                 e.preventDefault();
                                 clearAnswer(idx);
@@ -184,7 +205,9 @@ export default function QuestionnairePage() {
                             required={answers[idx] === null}
                             aria-labelledby={titleId}
                           />
-                          {opt.text}
+                          {/* Option number + text */}
+                          <span className="font-medium">{optNumber}.</span>{" "}
+                          <span className="align-middle">{opt.text}</span>
                         </label>
                       );
                     })}

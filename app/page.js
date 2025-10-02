@@ -39,10 +39,6 @@ export default function HomePage() {
             </Link>
           </div>
         </div>
-
-        <footer className="mt-12 text-xs text-slate-500">
-          در حال توسعه
-        </footer>
       </div>
     </main>
   );

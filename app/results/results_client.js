@@ -126,8 +126,6 @@ export default function ResultsClient() {
             دانلود JSON
           </button>
         </div>
-
-        <footer className="mt-10 text-xs text-slate-500">در حال توسعه</footer>
       </div>
     </main>
   );
