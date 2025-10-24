@@ -1,3 +1,5 @@
+// app\layout.js
+
 import "./globals.css";
 import { Vazirmatn } from "next/font/google";
 

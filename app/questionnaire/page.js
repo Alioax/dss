@@ -1,13 +1,16 @@
 // app/questionnaire/page.js
+
 "use client";
 
 import { useMemo, useRef, useState } from "react"; // ⬅️ added useRef
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import QUESTIONS from "../data/questions";
 
 export default function QuestionnairePage() {
   const router = useRouter();
+  const params = useSearchParams();
+  const metaRaw = params.get("meta") || "";
   const [answers, setAnswers] = useState(Array(QUESTIONS.length).fill(null));
   const qRefs = useRef([]); // ⬅️ refs for question containers
 
@@ -34,7 +37,9 @@ export default function QuestionnairePage() {
   function handleSubmit(e) {
     e.preventDefault();
     const payload = encodeURIComponent(JSON.stringify(answers));
-    router.push(`/results?answers=${payload}`);
+    // router.push(`/results?answers=${payload}`);
+    const meta = metaRaw ? `&meta=${metaRaw}` : "";
+    router.push(`/results?answers=${payload}${meta}`);
   }
 
   function handleReset() {
@@ -107,7 +112,8 @@ export default function QuestionnairePage() {
       >
         <div className="mb-6 flex flex-row-reverse items-center gap-3">
           <Link
-            href="/"
+            // href="/"
+            href={metaRaw ? `/?meta=${metaRaw}` : "/"}
             className="text-sm text-slate-600 hover:text-slate-900 underline-offset-2 hover:underline"
           >
             بازگشت ←

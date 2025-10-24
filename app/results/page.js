@@ -1,3 +1,5 @@
+// app\results\page.js
+
 import { Suspense } from "react";
 
 export const metadata = {
