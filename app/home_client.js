@@ -6,13 +6,18 @@ import { useRouter } from "next/navigation";
 export default function HomeClient() {
   const router = useRouter();
 
-  // ⛔️ No predefined values
+  // ✅ Predefined test values
   const [form, setForm] = useState({
     networkName: "",
     networkLocation: "",
     fillerName: "",
     email: "",
     phone: "",
+    // networkName: "تجن",
+    // networkLocation: "مازندران",
+    // fillerName: "اصغر رضایی",
+    // email: "asghar@ut.ac.ir",
+    // phone: "09120001122",
   });
 
   const emailOk = useMemo(
@@ -69,7 +74,7 @@ export default function HomeClient() {
               required
             />
 
-            {/* Email + Phone in one line on desktop */}
+            {/* ✅ Email + Phone in one line on desktop */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
                 type="email"
