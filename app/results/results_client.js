@@ -3,7 +3,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import QUESTIONS from "../data/questions";
 
@@ -106,8 +106,46 @@ export default function ResultsClient() {
 
     const meanRaw = answers.reduce((a, b) => a + b, 0) / answers.length;
 
+
     return { n: answers.length, meanRaw, overallPct, perQuestions, categories };
   }, [answers]);
+
+  // ✅ Hooks at top level (after calc, before any early return)
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
+  const [aiText, setAiText] = useState("");
+
+  useEffect(() => {
+    if (!calc) return;
+    const payload = {
+      overallPct: Math.max(0, Math.min(100, calc.overallPct)),
+      categories: calc.categories.slice(0, 5).map((c) => ({
+        label: c.label,
+        scorePct: Math.max(0, Math.min(100, c.scorePct)),
+      })),
+    };
+    const ac = new AbortController();
+    (async () => {
+      try {
+        setAiLoading(true);
+        setAiError("");
+        const res = await fetch("/api/llm-assess", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          signal: ac.signal
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || "خطا در دریافت نتیجه");
+        setAiText(data.text || "");
+      } catch (e) {
+        if (e.name !== "AbortError") setAiError(e.message || "خطای نامشخص");
+      } finally {
+        setAiLoading(false);
+      }
+    })();
+    return () => ac.abort();
+  }, [calc]);
 
   if (!answers || !calc) {
     return (
@@ -192,7 +230,71 @@ export default function ResultsClient() {
             </div>
           </div>
         </section>
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm my-6">
+          <div className="flex items-center justify-between gap-4 mb-3">
+            <h2 className="text-base font-medium text-slate-900">تحلیل و توصیه‌های هوشمند</h2>
+            <button
+              onClick={() => {
+                // re-trigger effect by toggling a paramless call
+                setAiText("");
+                setAiError("");
+                setAiLoading(true);
+                // re-send same payload
+                (async () => {
+                  try {
+                    const res = await fetch("/api/llm-assess", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        overallPct: Math.max(0, Math.min(100, calc.overallPct)),
+                        categories: calc.categories.slice(0, 5).map((c) => ({
+                          label: c.label,
+                          scorePct: Math.max(0, Math.min(100, c.scorePct)),
+                        })),
+                      }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data?.error || "خطا در دریافت نتیجه");
+                    setAiText(data.text || "");
+                  } catch (e) {
+                    setAiError(e.message || "خطای نامشخص");
+                  } finally {
+                    setAiLoading(false);
+                  }
+                })();
+              }}
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              disabled={aiLoading}
+              title="دریافت دوباره از مدل"
+            >
+              {aiLoading ? "در حال پردازش…" : "بازتولید"}
+            </button>
+          </div>
 
+          {aiLoading && (
+            <div className="animate-pulse space-y-3">
+              <div className="h-4 bg-slate-200 rounded w-1/3" />
+              <div className="h-3 bg-slate-200 rounded w-2/3" />
+              <div className="h-3 bg-slate-200 rounded w-1/2" />
+            </div>
+          )}
+
+          {!aiLoading && aiError && (
+            <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800">
+              {aiError}
+            </div>
+          )}
+
+          {!aiLoading && !aiError && aiText && (
+            <div className="text-sm text-slate-800 whitespace-pre-wrap leading-6">
+              {aiText}
+            </div>
+          )}
+
+          {!aiLoading && !aiError && !aiText && (
+            <p className="text-sm text-slate-500">نتیجه‌ای برای نمایش موجود نیست.</p>
+          )}
+        </section>
         {/* Detailed table */}
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm overflow-x-auto">
           <h2 className="text-base font-medium text-slate-900 mb-4">جزئیات سؤالات</h2>

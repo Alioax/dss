@@ -13,11 +13,11 @@ export async function POST(req) {
       return new Response(JSON.stringify({ error: "Invalid payload" }), { status: 400 });
     }
 
-    const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-    const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || "openrouter/anthropic/claude-3.7-sonnet";
+    const COHERE_API_KEY = process.env.COHERE_API_KEY;
+    const COHERE_MODEL = process.env.COHERE_MODEL || "command-r-plus";
 
-    if (!OPENROUTER_API_KEY) {
-      return new Response(JSON.stringify({ error: "Missing OPENROUTER_API_KEY" }), { status: 500 });
+    if (!COHERE_API_KEY) {
+      return new Response(JSON.stringify({ error: "Missing COHERE_API_KEY" }), { status: 500 });
     }
 
     const summary = {
@@ -28,13 +28,14 @@ export async function POST(req) {
       })),
     };
 
-    const system = `
-شما دستیار تخصصی DSS برای ارزیابی شبکه‌های آبیاری هستید. 
+    // Cohere: use `preamble` for system behavior
+    const preamble = `
+شما دستیار تخصصی DSS برای ارزیابی شبکه‌های آبیاری هستید.
 فقط بر اساس داده‌های خلاصه‌شده (درصد عملکرد کل و میانگین‌های ۵ دسته) تحلیل کنید.
 خروجی را به فارسی و در سه بخش کوتاه ارائه دهید:
 1) تفسیر سطح عملکرد کل (یک جمله).
-2) نکات قوت/ضعف هر دسته (حداکثر 5 گلوله‌وار — از زیاد به کم).
-3) 3 توصیه عملی‌ی کوتاه و مشخص (قابل اقدام در 3 ماه آینده).
+2) نکات قوت/ضعف هر دسته (حداکثر 5 مورد — از زیاد به کم).
+3) 3 توصیه عملی کوتاه و مشخص (قابل اقدام در 3 ماه آینده).
 از اعداد درصد ورودی استفاده کنید و از ادعاهای خارج از داده‌ها پرهیز کنید.
     `.trim();
 
@@ -45,34 +46,32 @@ export async function POST(req) {
 ${summary.categories.map((c, i) => `  ${i + 1}) ${c.label}: ${c.scorePct}%`).join("\n")}
     `.trim();
 
-    const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    // Cohere Chat v2
+    const resp = await fetch("https://api.cohere.com/v2/chat", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+        "Authorization": `Bearer ${COHERE_API_KEY}`,
         "Content-Type": "application/json",
-        // (اختیاری) توصیه‌شده توسط OpenRouter
-        "HTTP-Referer": "https://your-domain.example", 
-        "X-Title": "Irrigation DSS",
       },
       body: JSON.stringify({
-        model: OPENROUTER_MODEL,
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: user },
-        ],
+        model: COHERE_MODEL,          // e.g., "command-r-plus"
+        preamble,                     // system-style instructions
+        messages: [{ role: "user", content: user }],
         temperature: 0.3,
       }),
     });
 
     if (!resp.ok) {
       const t = await resp.text();
-      return new Response(JSON.stringify({ error: `OpenRouter error: ${t}` }), { status: 502 });
+      return new Response(JSON.stringify({ error: `Cohere error: ${t}` }), { status: 502 });
     }
 
     const json = await resp.json();
-    const text =
-      json?.choices?.[0]?.message?.content?.trim() ||
-      "پاسخی از مدل دریافت نشد.";
+    // Cohere v2 response shape: message.content is an array of parts with {type, text}
+    const text = (json?.message?.content || [])
+      .map((p) => (typeof p?.text === "string" ? p.text : ""))
+      .join("")
+      .trim() || "پاسخی از مدل دریافت نشد.";
 
     return new Response(JSON.stringify({ text }), { status: 200 });
   } catch (err) {
