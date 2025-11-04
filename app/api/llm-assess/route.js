@@ -1,6 +1,4 @@
-// app/api/llm-assess/route.js
-
-// # workkk
+// app\api\llm-assess\route.js
 
 export const runtime = "nodejs";
 
@@ -17,8 +15,7 @@ export async function POST(req) {
     }
 
     const COHERE_API_KEY = process.env.COHERE_API_KEY;
-    const COHERE_MODEL = process.env.COHERE_MODEL || "command-r-plus";
-
+    const COHERE_MODEL = process.env.COHERE_MODEL || "command-r";
     if (!COHERE_API_KEY) {
       return new Response(JSON.stringify({ error: "Missing COHERE_API_KEY" }), { status: 500 });
     }
@@ -31,8 +28,7 @@ export async function POST(req) {
       })),
     };
 
-    // Cohere: use `preamble` for system behavior
-    const preamble = `
+    const systemText = `
 شما دستیار تخصصی DSS برای ارزیابی شبکه‌های آبیاری هستید.
 فقط بر اساس داده‌های خلاصه‌شده (درصد عملکرد کل و میانگین‌های ۵ دسته) تحلیل کنید.
 خروجی را به فارسی و در سه بخش کوتاه ارائه دهید:
@@ -42,36 +38,39 @@ export async function POST(req) {
 از اعداد درصد ورودی استفاده کنید و از ادعاهای خارج از داده‌ها پرهیز کنید.
     `.trim();
 
-    const user = `
+    const userText = `
 داده‌های خلاصه:
 - عملکرد کل: ${summary.overallPct}%
 - دسته‌ها:
 ${summary.categories.map((c, i) => `  ${i + 1}) ${c.label}: ${c.scorePct}%`).join("\n")}
     `.trim();
 
-    // Cohere Chat v2
-    const resp = await fetch("https://api.cohere.com/v2/chat", {
+    // ✅ Cohere v2: messages array; system replaces preamble; v2 endpoint is api.cohere.ai
+    const resp = await fetch("https://api.cohere.ai/v2/chat", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${COHERE_API_KEY}`,
         "Content-Type": "application/json",
+        "Accept": "application/json",
       },
       body: JSON.stringify({
-        model: COHERE_MODEL,          // e.g., "command-r-plus"
-        preamble,                     // system-style instructions
-        messages: [{ role: "user", content: user }],
+        model: COHERE_MODEL,
+        messages: [
+          { role: "system", content: systemText },
+          { role: "user", content: userText },
+        ],
         temperature: 0.3,
       }),
     });
 
     if (!resp.ok) {
       const t = await resp.text();
-      return new Response(JSON.stringify({ error: `Cohere error: ${t}` }), { status: 502 });
+      return new Response(JSON.stringify({ error: `Cohere v2 error: ${t}` }), { status: 502 });
     }
 
     const json = await resp.json();
-    // Cohere v2 response shape: message.content is an array of parts with {type, text}
-    const text = (json?.message?.content || [])
+    // v2 returns: { message: { content: [{ type: "text", text: "..."}] } }
+    const text = (json?.message?.content ?? [])
       .map((p) => (typeof p?.text === "string" ? p.text : ""))
       .join("")
       .trim() || "پاسخی از مدل دریافت نشد.";
