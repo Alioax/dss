@@ -5,6 +5,7 @@
 import Link from "next/link";
 import { useMemo, useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import ReactMarkdown from "react-markdown";
 import QUESTIONS from "../data/questions";
 
 const CATEGORY_LABELS = {
@@ -285,12 +286,16 @@ export default function ResultsClient() {
             </div>
           )}
 
-          {!aiLoading && !aiError && aiText && (
+          {/* {!aiLoading && !aiError && aiText && (
             <div className="text-sm text-slate-800 whitespace-pre-wrap leading-6">
               {aiText}
             </div>
+          )} */}
+          {!aiLoading && !aiError && aiText && (
+            <div className="text-sm text-slate-800 leading-6 prose prose-slate max-w-none">
+              <ReactMarkdown>{aiText}</ReactMarkdown>
+            </div>
           )}
-
           {!aiLoading && !aiError && !aiText && (
             <p className="text-sm text-slate-500">نتیجه‌ای برای نمایش موجود نیست.</p>
           )}
