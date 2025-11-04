@@ -15,7 +15,20 @@ export async function POST(req) {
     }
 
     const COHERE_API_KEY = process.env.COHERE_API_KEY;
-    const COHERE_MODEL = process.env.COHERE_MODEL || "command-r";
+
+    const SUPPORTED_DEFAULT = "command-a-03-2025";
+    const ALLOWED = new Set([
+      "command-a-03-2025",
+      "command-r-plus-08-2024",
+      // add any others you plan to use
+    ]);
+
+    const COHERE_MODEL =
+      process.env.COHERE_MODEL && ALLOWED.has(process.env.COHERE_MODEL)
+        ? process.env.COHERE_MODEL
+        : SUPPORTED_DEFAULT;
+
+
     if (!COHERE_API_KEY) {
       return new Response(JSON.stringify({ error: "Missing COHERE_API_KEY" }), { status: 500 });
     }
