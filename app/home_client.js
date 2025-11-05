@@ -15,11 +15,11 @@ export default function HomeClient() {
     fillerName: "",
     email: "",
     phone: "",
-    networkName: "تجن",
-    networkLocation: "مازندران",
-    fillerName: "اصغر رضایی",
-    email: "asghar@ut.ac.ir",
-    phone: "09120001122",
+    // networkName: "تجن",
+    // networkLocation: "مازندران",
+    // fillerName: "اصغر رضایی",
+    // email: "asghar@ut.ac.ir",
+    // phone: "09120001122",
   });
 
   const emailOk = useMemo(
